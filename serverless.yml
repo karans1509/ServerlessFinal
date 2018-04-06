@@ -1,0 +1,85 @@
+service: final
+
+custom:
+  bucket: spotify-demo
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: us-west-2
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:us-west-2:*:*"
+    - Effect: Allow
+      Action:
+        - s3:*
+      Resource: "*"
+
+functions:
+  addFiles:
+    handler: spotify/addFiles.addFiles
+    events: 
+      - s3:
+          bucket: ${self:custom.bucket}
+          event: s3:ObjectCreated:*
+  
+  removeFile:
+    handler: spotify/removeFile.removeFile
+    events: 
+      - s3:
+          bucket: ${self:custom.bucket}
+          event: s3:ObjectRemoved:*
+  
+  getSongs:
+    handler: spotify/getSongs.getSongs
+    events: 
+      - http:
+          path: songs
+          method: get
+          cors: true
+  
+  playlist:
+    handler: spotify/playlist.playlist
+    events:
+      - http:
+          path: playlist
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    RecordSongsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: songs
+        AttributeDefinitions:
+          - AttributeName: songName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: songName
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+    PlaylistTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: playlists
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
